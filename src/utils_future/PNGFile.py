@@ -9,24 +9,32 @@ log = Log("PNGFile")
 
 class PNGFile(File):
 
-    def add_watermark(self, watermark_text, watermark_color=(0, 0, 0, 4)):
-        img = Image.open(self.path).convert("RGBA")
-        width, height = img.size
-        img = img.resize((width, height))
-        draw = ImageDraw.Draw(img)
+    @staticmethod
+    def get_font(watermark_text, width, height):
         diag = math.sqrt(width**2 + height**2)
         font_size = int(1.25 * diag / len(watermark_text))
-
         font_path = os.path.join("media", "fonts", "Afacad-Regular.ttf")
         font = ImageFont.truetype(font_path, font_size)
+        return font, font_size
 
+    @staticmethod
+    def get_text_info(draw, watermark_text, width, height):
+        font, font_size = PNGFile.get_font(watermark_text, width, height)
         text_bbox = draw.textbbox((0, 0), watermark_text, font=font)
         text_width, text_height = (
             text_bbox[2] - text_bbox[0],
             text_bbox[3] - text_bbox[1],
         )
         angle = math.degrees(math.atan2(height, width))
-        padding = font_size * 5
+        return text_width, text_height, angle, font, font_size
+
+    @staticmethod
+    def get_text_im(watermark_text, watermark_color, width, height, draw):
+
+        text_width, text_height, angle, font, font_size = (
+            PNGFile.get_text_info(draw, watermark_text, width, height)
+        )
+        padding = font_size * 4
         text_img = Image.new(
             "RGBA",
             (text_width + padding * 2, text_height + padding * 2),
@@ -41,6 +49,17 @@ class PNGFile(File):
         )
 
         text_img = text_img.rotate(angle, expand=1)
+        return text_img
+
+    def add_watermark(self, watermark_text, watermark_color=(0, 0, 0, 4)):
+        img = Image.open(self.path).convert("RGBA")
+        width, height = img.size
+        img = img.resize((width, height))
+        draw = ImageDraw.Draw(img)
+        text_img = PNGFile.get_text_im(
+            watermark_text, watermark_color, width, height, draw
+        )
+
         x = (width - text_img.width) // 2
         y = (height - text_img.height) // 2
 
